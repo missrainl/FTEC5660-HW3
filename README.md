@@ -18,11 +18,11 @@ investor to talk to customers, competitors, suppliers and staff.
 `public_test/` has one folder per company. Your code receives four tools per
 company (built by the provided code in `hw3.py`):
 
-| Tool | What it gives you |
-| --- | --- |
-| `list_documents()` | the company's six documents and their dates |
-| `read_document(name)` | one document: the 2025 letter to shareholders, four earnings calls (Q3 2025 to Q2 2026) and a news file (July 2025 to July 2026) |
-| `sql_query(query)` | one read-only SQLite query on the company's database; at most 50 rows come back, so use `SUM`, `GROUP BY` and `WHERE` |
+| Tool                     | What it gives you                        |
+| ------------------------ | ---------------------------------------- |
+| `list_documents()`       | the company's six documents and their dates |
+| `read_document(name)`    | one document: the 2025 letter to shareholders, four earnings calls (Q3 2025 to Q2 2026) and a news file (July 2025 to July 2026) |
+| `sql_query(query)`       | one read-only SQLite query on the company's database; at most 50 rows come back, so use `SUM`, `GROUP BY` and `WHERE` |
 | `interview(role, topic)` | what one person says about the company; at most **10 interviews per company** |
 
 The documents are what management says. Management's own claims (such as "we
@@ -32,37 +32,37 @@ evidence on their own: check them against the database and the interviews.
 **Database tables** (amounts in USD thousands; dates `YYYY-MM-DD`, months
 `YYYY-MM`, quarters like `2025Q3`; the fiscal year is the calendar year):
 
-| Table | Columns |
-| --- | --- |
-| `company` | name, industry |
+| Table              | Columns                                  |
+| ------------------ | ---------------------------------------- |
+| `company`          | name, industry                           |
 | `industry_medians` | industry, revenue_growth_2y_pct, new_product_share_pct, new_product_sales_per_rd, operating_margin_pct (one row per industry; use the row for the company's own industry) |
-| `orders` | order_id, order_date, product, customer, amount, note (about 3,000 to 4,000 orders from January 2023 to June 2026; revenue is the sum of order amounts) |
-| `products` | product, launch_date |
-| `monthly_costs` | month, cost_of_sales, selling_admin, research_development |
-| `quarterly_cash` | quarter, operating_cash_flow, capex, cash_end |
-| `capex_plan` | year, planned_capex (2026 to 2028) |
-| `returns` | month, units_shipped, units_returned |
-| `insider_trades` | trade_date, person, title, side (`buy` or `sell`), shares, price |
+| `orders`           | order_id, order_date, product, customer, amount, note (about 3,000 to 4,000 orders from January 2023 to June 2026; revenue is the sum of order amounts) |
+| `products`         | product, launch_date                     |
+| `monthly_costs`    | month, cost_of_sales, selling_admin, research_development |
+| `quarterly_cash`   | quarter, operating_cash_flow, capex, cash_end |
+| `capex_plan`       | year, planned_capex (2026 to 2028)       |
+| `returns`          | month, units_shipped, units_returned     |
+| `insider_trades`   | trade_date, person, title, side (`buy` or `sell`), shares, price |
 
 **Terms used in the data.**
 
-| Term | Meaning |
-| --- | --- |
-| FY2025 | Fiscal year 2025. Here the fiscal year is the calendar year, so FY2025 is January to December 2025. |
-| Quarter | Three months of the year: Q1 is January to March, Q2 April to June, Q3 July to September and Q4 October to December. The database writes `2025Q3`; the documents write "third quarter 2025". |
-| Amounts | The database is in **USD thousands** (676,100 means US$676.1 million). The documents use USD millions. |
-| Revenue | Money from sales: the sum of `amount` in `orders`. |
-| Cost of sales | The cost of making the products that were sold. |
-| Selling and admin | The cost of selling and of running the company (sales staff, offices, management). |
-| R&D | Research and development spending, mainly on new products. |
-| Operating margin | Operating profit as a share of revenue: (revenue − cost of sales − selling and admin − R&D) ÷ revenue. |
-| Operating cash flow | Cash that the day-to-day business brings in during a quarter. |
+| Term                         | Meaning                                  |
+| ---------------------------- | ---------------------------------------- |
+| FY2025                       | Fiscal year 2025. Here the fiscal year is the calendar year, so FY2025 is January to December 2025. |
+| Quarter                      | Three months of the year: Q1 is January to March, Q2 April to June, Q3 July to September and Q4 October to December. The database writes `2025Q3`; the documents write "third quarter 2025". |
+| Amounts                      | The database is in **USD thousands** (676,100 means US$676.1 million). The documents use USD millions. |
+| Revenue                      | Money from sales: the sum of `amount` in `orders`. |
+| Cost of sales                | The cost of making the products that were sold. |
+| Selling and admin            | The cost of selling and of running the company (sales staff, offices, management). |
+| R&D                          | Research and development spending, mainly on new products. |
+| Operating margin             | Operating profit as a share of revenue: (revenue − cost of sales − selling and admin − R&D) ÷ revenue. |
+| Operating cash flow          | Cash that the day-to-day business brings in during a quarter. |
 | Cash at the end of a quarter | The cash the company holds on the last day of that quarter (`cash_end`). |
-| Capex | Capital expenditure: spending on factories, machines and other long-term assets. `capex_plan` holds the planned capex for 2026 to 2028. |
-| Return rate | Units returned ÷ units shipped, from the `returns` table. |
-| Industry median | The middle value for companies in the same industry, from `industry_medians`. |
-| Insider | A director or senior manager of the company. `insider_trades` lists the shares they bought (`buy`) or sold (`sell`). |
-| Earnings call | A meeting each quarter where management presents the quarter's results to investors. Each call quotes that quarter's revenue. |
+| Capex                        | Capital expenditure: spending on factories, machines and other long-term assets. `capex_plan` holds the planned capex for 2026 to 2028. |
+| Return rate                  | Units returned ÷ units shipped, from the `returns` table. |
+| Industry median              | The middle value for companies in the same industry, from `industry_medians`. |
+| Insider                      | A director or senior manager of the company. `insider_trades` lists the shares they bought (`buy`) or sold (`sell`). |
+| Earnings call                | A meeting each quarter where management presents the quarter's results to investors. Each call quotes that quarter's revenue. |
 
 **Interviews.** Roles: `customer`, `current_employee`, `former_employee`,
 `competitor`, `supplier`. Topics: `sales_team`, `working_conditions`,
@@ -70,13 +70,13 @@ evidence on their own: check them against the database and the interviews.
 about each topic; the others say they can't comment, and that answer still
 uses up one interview.
 
-| Topic | Who knows about it |
-| --- | --- |
-| `sales_team` | customer, competitor |
+| Topic                | Who knows about it                |
+| -------------------- | --------------------------------- |
+| `sales_team`         | customer, competitor              |
 | `working_conditions` | current_employee, former_employee |
-| `top_management` | former_employee, supplier |
-| `decision_making` | supplier, customer |
-| `competitive_edge` | competitor, customer |
+| `top_management`     | former_employee, supplier         |
+| `decision_making`    | supplier, customer                |
+| `competitive_edge`   | competitor, customer              |
 
 People who know about a topic always agree with each other, so one good answer
 is enough.
@@ -87,23 +87,23 @@ Pick any 3 of Fisher's 15 points and write them in `CHOSEN_POINTS` near the
 top of `hw3.py`, e.g. `CHOSEN_POINTS = [1, 7, 15]`. The full questions are in
 `FISHER_POINTS` in `hw3.py` and in the book.
 
-| # | Fisher's point | Where the evidence is |
-| --- | --- | --- |
-| 1 | Market potential for sales growth | database |
-| 2 | New products as current lines mature | database |
-| 3 | Effective research and development | database |
-| 4 | Above-average sales organization | interviews (`sales_team`) |
-| 5 | Worthwhile profit margin | database |
-| 6 | Maintaining or improving margins | database |
-| 7 | Labour and personnel relations | interviews (`working_conditions`) |
-| 8 | Executive relations | interviews (`top_management`) |
-| 9 | Depth of management | interviews (`decision_making`) |
-| 10 | Cost analysis and accounting controls | earnings calls, checked against the database |
-| 11 | Advantage over competitors | interviews (`competitive_edge`) |
-| 12 | Long-range outlook on profits | database |
-| 13 | Growth without dilutive equity financing | database |
-| 14 | Management talks freely about troubles | earnings calls, checked against the database |
-| 15 | Management of unquestionable integrity | news file, checked against the database |
+| #    | Fisher's point                           | Where the evidence is                    |
+| ---- | ---------------------------------------- | ---------------------------------------- |
+| 1    | Market potential for sales growth        | database                                 |
+| 2    | New products as current lines mature     | database                                 |
+| 3    | Effective research and development       | database                                 |
+| 4    | Above-average sales organization         | interviews (`sales_team`)                |
+| 5    | Worthwhile profit margin                 | database                                 |
+| 6    | Maintaining or improving margins         | database                                 |
+| 7    | Labour and personnel relations           | interviews (`working_conditions`)        |
+| 8    | Executive relations                      | interviews (`top_management`)            |
+| 9    | Depth of management                      | interviews (`decision_making`)           |
+| 10   | Cost analysis and accounting controls    | earnings calls, checked against the database |
+| 11   | Advantage over competitors               | interviews (`competitive_edge`)          |
+| 12   | Long-range outlook on profits            | database                                 |
+| 13   | Growth without dilutive equity financing | database                                 |
+| 14   | Management talks freely about troubles   | earnings calls, checked against the database |
+| 15   | Management of unquestionable integrity   | news file, checked against the database  |
 
 For each of your points, **you design the rule**: which evidence to use, what
 to compute or whom to ask, and where the line between PASS and FAIL lies. PASS
@@ -174,10 +174,42 @@ names and wording, and scores your 3 points only.
 > to students: this is your report, see the homework description.
 
 ### My 3 points and rules
-> for each point: why you chose it, your PASS rule in one or two sentences, and the evidence it uses. Quote Fisher where it helps.
+**Point 1 – Market potential for sales growth**
+
+I chose this point because Fisher emphasizes the importance of "sufficient market potential" to support a "sizable increase in sales". I evaluate this by comparing the company's revenue growth from FY2023 to FY2025 with its industry median. A company receives PASS if its revenue growth is greater than or equal to the industry median; otherwise, it receives FAIL. The analysis uses revenue data from `orders` and industry benchmarks from `company` and `industry_medians`.
+
+**Point 5 – Worthwhile profit margin**
+
+I chose this point because Fisher considers a "worthwhile profit margin" an important indicator of a company's financial quality. I calculate the FY2025 operating margin by subtracting cost of sales, selling and administrative expenses, and R&D expenses from revenue, then dividing the result by revenue. A company receives PASS if its operating margin is greater than or equal to its industry median; otherwise, it receives FAIL. The analysis uses `orders`, `monthly_costs` and `industry_medians`.
+
+**Point 6 – Maintaining or improving margins**
+
+I chose this point because Fisher emphasizes the importance of maintaining or improving profit margins over time, rather than focusing only on current profitability. I compare the company's operating margins in FY2023 and FY2025 to evaluate changes in profitability. A company receives PASS if its FY2025 operating margin is greater than or equal to its FY2023 operating margin; otherwise, it receives FAIL. The analysis uses revenue data from `orders` and operating cost data from `monthly_costs`.
+
+
 
 ### Design
-> a visualization of your agent design and one paragraph describing it.
 
+The agent uses LangChain and the DeepSeek v4 Flash model to analyze each company. It accesses company data through the provided SQL tool, which calculates revenue growth and operating margins using predefined rules. The agent uses these results to determine PASS or FAIL for the three selected Fisher points and provides a short summary of the evidence. The program processes each company separately and saves the final results in results.csv.
+
+
+
+```mermaid
+
+graph TD
+    A[Company-specific Tools] --> B[LangChain Agent]
+    C[DeepSeek v4 Flash] --> B
+    B --> D[SQL Query Tool]
+    D --> E[Company SQLite Database]
+    E --> F[SQL Calculations]
+    F --> G[PASS FAIL Rules]
+    G --> H[SQL Results]
+    H --> B
+    B --> I[Summary]
+    I --> J[Result Parsing]
+    J --> K[results.csv]
+
+```
 ### Results
-> your point score on `public_test`, the companies where your verdicts disagree with the public answers, and why.
+
+The agent was tested on 20 companies in the public_test dataset and achieved 60 correct verdicts out of 60, resulting in 100% point accuracy and 100% balanced accuracy. All three selected Fisher points (Points 1, 5 and 6) achieved 100% accuracy. There were no disagreements with the public ground-truth answers. This result demonstrates that the selected rules performed well on the public test data, although performance on unseen companies may differ.

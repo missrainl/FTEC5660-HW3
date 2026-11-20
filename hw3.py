@@ -12,6 +12,7 @@ import threading
 import zlib
 from pathlib import Path
 from typing import Any
+import os
 
 
 MODEL_NAME = "deepseek-v4-flash"
@@ -57,7 +58,8 @@ def load_env_file(path: Path = Path(".env")) -> None:
 
 # Choose any 3 of the 15 points, e.g. CHOSEN_POINTS = [1, 7, 15]. Your agent
 # gives a PASS or FAIL verdict on these 3 points only, with your own rule for each.
-CHOSEN_POINTS: list[int] = []  ### YOUR CODE HERE
+
+CHOSEN_POINTS: list[int] = [1, 5, 6]  ### YOUR CODE HERE
 
 
 def build_agent() -> Any:
@@ -72,45 +74,269 @@ def build_agent() -> Any:
     you will probably create one tool-calling agent per company there.
     """
     ### YOUR CODE HERE
-    return None
+    import os
+    from langchain_deepseek import ChatDeepSeek
+
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+
+    if not api_key:
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY is missing. Please check your .env file."
+        )
+
+    model = ChatDeepSeek(
+        model=MODEL_NAME,
+        api_key=api_key,
+        temperature=0
+    )
+
+    return model
 
 
 async def analyze_companies(agent: Any, companies: dict[str, list[Any]]) -> dict[str, dict[str, Any]]:
-    """Run your agent and return its verdicts on CHOSEN_POINTS for every company.
+    """Analyze each company with its SQL tool and a DeepSeek LangChain agent."""
+    import asyncio
+    from langchain.agents import create_agent
 
-    ``companies`` maps each company folder name to its four LangChain tools:
-
-        list_documents()             names and dates of the company's documents
-        read_document(name)          the text of one document
-        sql_query(query)             one read-only SQLite query on company.db
-        interview(role, topic)       one interview answer (INTERVIEW_LIMIT per company)
-
-    Give the tools to a tool-calling agent, e.g.
-    ``create_agent(model, tools=companies[name], system_prompt=...)``, or call
-    them yourself with ``tool.invoke({...})``. The README explains the
-    documents, the database tables and the interview roles and topics.
-
-    Return one dictionary per company folder name, e.g. with
-    CHOSEN_POINTS = [1, 7, 15]:
-
-        {
-            "hollins_group": {
-                "points": {1: "PASS", 7: "FAIL", 15: "PASS"},
-                "summary": "Two or three sentences explaining the verdicts.",
-            },
-            ...
-        }
-
-    Each chosen point needs a verdict ("PASS" or "FAIL"; True/False also
-    works). Other points are ignored.
-
-    Catch errors per company (e.g. a failed API call) and still return an
-    entry for it: an exception here means no results.csv, which scores zero.
-    You may analyse companies in parallel (e.g. ``asyncio.gather``).
+    # All calculations are performed by SQLite, not by the language model.
+    sql = """
+    WITH revenue AS (
+        SELECT
+            SUM(CASE
+                WHEN order_date >= '2023-01-01'
+                 AND order_date < '2024-01-01'
+                THEN amount ELSE 0 END) AS revenue_2023,
+            SUM(CASE
+                WHEN order_date >= '2025-01-01'
+                 AND order_date < '2026-01-01'
+                THEN amount ELSE 0 END) AS revenue_2025
+        FROM orders
+    ),
+    costs AS (
+        SELECT
+            SUM(CASE
+                WHEN month >= '2023-01' AND month < '2024-01'
+                THEN cost_of_sales + selling_admin + research_development
+                ELSE 0 END) AS costs_2023,
+            SUM(CASE
+                WHEN month >= '2025-01' AND month < '2026-01'
+                THEN cost_of_sales + selling_admin + research_development
+                ELSE 0 END) AS costs_2025
+        FROM monthly_costs
+    ),
+    base AS (
+        SELECT
+            c.name AS company,
+            c.industry,
+            r.revenue_2023,
+            r.revenue_2025,
+            co.costs_2023,
+            co.costs_2025,
+            im.revenue_growth_2y_pct AS industry_growth_pct,
+            im.operating_margin_pct AS industry_margin_pct
+        FROM company AS c
+        CROSS JOIN revenue AS r
+        CROSS JOIN costs AS co
+        JOIN industry_medians AS im
+          ON im.industry = c.industry
+    ),
+    metrics AS (
+        SELECT
+            *,
+            100.0 * (revenue_2025 - revenue_2023)
+                / NULLIF(revenue_2023, 0) AS company_growth_pct,
+            100.0 * (revenue_2025 - costs_2025)
+                / NULLIF(revenue_2025, 0) AS margin_2025_pct,
+            100.0 * (revenue_2023 - costs_2023)
+                / NULLIF(revenue_2023, 0) AS margin_2023_pct
+        FROM base
+    )
+    SELECT
+        company,
+        industry,
+        ROUND(company_growth_pct, 2) AS company_growth_pct,
+        ROUND(industry_growth_pct, 2) AS industry_growth_pct,
+        ROUND(margin_2025_pct, 2) AS margin_2025_pct,
+        ROUND(industry_margin_pct, 2) AS industry_margin_pct,
+        ROUND(margin_2023_pct, 2) AS margin_2023_pct,
+        CASE
+            WHEN company_growth_pct >= industry_growth_pct
+            THEN 'PASS' ELSE 'FAIL'
+        END AS point_1,
+        CASE
+            WHEN margin_2025_pct >= industry_margin_pct
+            THEN 'PASS' ELSE 'FAIL'
+        END AS point_5,
+        CASE
+            WHEN margin_2025_pct >= margin_2023_pct
+            THEN 'PASS' ELSE 'FAIL'
+        END AS point_6
+    FROM metrics;
     """
-    ### YOUR CODE HERE
-    _ = agent
-    return {name: {"points": {}, "summary": ""} for name in companies}
+
+    system_prompt = """
+You are a financial analyst applying Philip Fisher's investment framework.
+
+The user will ask you to analyze one fictional company and provide an SQL query.
+You MUST call the company's sql_query tool with that exact SQL query.
+Do not change the query, do not use other data sources, and do not invent data.
+
+The SQL result already contains the verdict columns point_1, point_5, and point_6.
+Use those verdicts exactly. Do not recalculate or override them.
+
+Point 1: Market potential for sales growth.
+PASS rule: company two-year revenue growth >= its industry median.
+
+Point 5: Worthwhile profit margin.
+PASS rule: 2025 operating margin >= its industry median operating margin.
+
+Point 6: Maintaining or improving margins.
+PASS rule: 2025 full-year operating margin >= 2023 full-year operating margin.
+
+After calling the SQL tool, provide a concise 2-3 sentence summary of the evidence.
+Do not return JSON. Do not claim a verdict if the SQL tool returned an error or no data.
+"""
+
+    semaphore = asyncio.Semaphore(3)
+
+    def extract_text(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    parts.append(str(item.get("text", "")))
+                else:
+                    parts.append(str(item))
+            return "\n".join(p for p in parts if p)
+        return str(content) if content is not None else ""
+
+    def parse_sql_result(text: str) -> dict[str, str]:
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines or lines[0].startswith("SQL error:"):
+            raise ValueError(text or "SQL tool returned an empty result")
+
+        header = [part.strip() for part in lines[0].split("|")]
+        data_line = next(
+            (line for line in lines[1:] if "|" in line and not line.startswith("...")),
+            None,
+        )
+        if data_line is None:
+            raise ValueError(f"SQL tool returned no data row: {text}")
+
+        values = [part.strip() for part in data_line.split("|")]
+        if len(header) != len(values):
+            raise ValueError(f"Could not parse SQL result row: {text}")
+
+        row = dict(zip(header, values))
+        required = ("point_1", "point_5", "point_6")
+        for key in required:
+            if row.get(key, "").upper() not in ("PASS", "FAIL"):
+                raise ValueError(f"Missing/invalid {key} in SQL result: {text}")
+        return row
+
+    async def analyze_one(name: str, tools: list[Any]):
+        async with semaphore:
+            sql_tool = next((tool for tool in tools if tool.name == "sql_query"), None)
+            if sql_tool is None:
+                return name, {
+                    "points": {p: None for p in CHOSEN_POINTS},
+                    "summary": "Analysis error: sql_query tool not found.",
+                }
+
+            messages = []
+            try:
+                company_agent = create_agent(
+                    model=agent,
+                    tools=tools,
+                    system_prompt=system_prompt,
+                )
+                result = await asyncio.wait_for(
+                    company_agent.ainvoke(
+                        {
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": (
+                                        f"Analyze company: {name}. "
+                                        "Call sql_query with this exact query:\n"
+                                        f"{sql}"
+                                    ),
+                                }
+                            ]
+                        },
+                        config={"recursion_limit": 8},
+                    ),
+                    timeout=120,
+                )
+                messages = result.get("messages", [])
+            except Exception as exc:
+                # The provided LangChain SQL tool is still used below as a
+                # safe fallback if the model/tool-calling step fails.
+                print(f"Agent call failed for {name}: {type(exc).__name__}: {exc}")
+
+            # Prefer the SQL tool result produced during the agent run.
+            sql_output = None
+            for message in messages:
+                if getattr(message, "type", "") == "tool":
+                    content = extract_text(getattr(message, "content", ""))
+                    if "point_1" in content and "point_5" in content and "point_6" in content:
+                        sql_output = content
+
+            # If the agent did not successfully call the SQL tool, invoke
+            # the same provided LangChain tool directly; never inspect the DB.
+            if sql_output is None:
+                try:
+                    sql_output = await sql_tool.ainvoke({"query": sql})
+                except Exception as exc:
+                    print(f"SQL tool failed for {name}: {type(exc).__name__}: {exc}")
+                    return name, {
+                        "points": {p: None for p in CHOSEN_POINTS},
+                        "summary": f"Analysis error: {type(exc).__name__}",
+                    }
+
+            try:
+                row = parse_sql_result(extract_text(sql_output))
+            except Exception as exc:
+                print(f"Could not parse SQL result for {name}: {exc}")
+                return name, {
+                    "points": {p: None for p in CHOSEN_POINTS},
+                    "summary": f"SQL result error: {type(exc).__name__}",
+                }
+
+            # Verdicts come directly from SQLite CASE expressions.
+            points = {
+                1: row["point_1"].upper(),
+                5: row["point_5"].upper(),
+                6: row["point_6"].upper(),
+            }
+
+            # Use the model's final response as the explanation, but never
+            # let its wording change the SQL-derived verdicts.
+            summary = ""
+            for message in reversed(messages):
+                if getattr(message, "type", "") == "ai":
+                    summary = extract_text(getattr(message, "content", "")).strip()
+                    if summary:
+                        break
+
+            if not summary:
+                summary = (
+                    f"Revenue growth was {row['company_growth_pct']}% versus "
+                    f"the industry median of {row['industry_growth_pct']}%. "
+                    f"The 2025 operating margin was {row['margin_2025_pct']}% "
+                    f"versus the industry median of {row['industry_margin_pct']}%, "
+                    f"and compared with {row['margin_2023_pct']}% in 2023."
+                )
+
+            return name, {"points": points, "summary": summary}
+
+    results = await asyncio.gather(
+        *(analyze_one(name, tools) for name, tools in companies.items())
+    )
+    return dict(results)
+
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
